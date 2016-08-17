@@ -1,0 +1,3 @@
+[submodule "libs/netjsongraph.js"]
+	path = libs/netjsongraph.js
+	url = https://github.com/interop-dev/netjsongraph.js.git
