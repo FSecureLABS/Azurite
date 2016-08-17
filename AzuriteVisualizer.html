@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Azurite Visualizer - Azure Subscription Topology Overview</title>
+    <meta charset="utf-8">
+    <link href="libs/netjsongraph.js/src/netjsongraph.css" rel="stylesheet">
+    <link href="libs/netjsongraph.js/src/netjsongraph-theme.css" rel="stylesheet">
+    <style>
+        body{ overflow: hidden }
+        .vpn{ stroke: purple; }
+        .njg-node{ fill: #3182bd }
+        .njg-node.vm { fill: #3182bd }
+        .njg-node.gateway { fill: #ff8000 !important }
+        .njg-node.subnet, .njg-node.vnet{ fill: #787878 !important }
+        .njg-node.subnet-weak-nsg, .njg-node.vm-weak-nsg { 
+            fill: #787878 !important;
+            stroke: #ff0033;
+            stroke-width: 3px !important;
+            stroke-opacity: 0.4 !important
+        }
+        .njg-link{ stroke-width: 5px }
+        .njg-link.vnet-gateway-to-vnet-gateway{ stroke: purple; }
+        .njg-link:hover,.njg-link.njg-open{
+            stroke-width: 6px !important;
+            stroke-opacity: 0.7 !important
+        }
+        /* legend */
+        #legend{
+            position: absolute;
+            top: auto;
+            left: 5px;
+            bottom: 5px;
+            width: auto;
+            height: auto;
+            max-width: 250px;
+            padding: 0 15px;
+            background: #fbfbfb;
+            border-radius: 2px;
+            border: 1px solid #ccc;
+            color: #6d6357;
+            font-family: Arial, sans-serif;
+            font-family: sans-serif;
+            font-size: 14px;
+        }
+        #legend p{ line-height: 16px; margin: 10px 0 }
+        #legend span{
+            width: 16px;
+            margin-right: 5px;
+        }
+        #legend span.circle{
+            display: inline-block;
+            border-radius: 50%;
+            height: 16px;
+        }
+        #legend span.link{
+            display: inline-block;
+            height: 5px;
+            border-bottom-width: 6px;
+            border-bottom-style: solid;
+        }
+        #legend .node{ background-color: #3182bd }
+        #legend .vnet, .subnet { background-color: #787878 }
+        #legend .gateway{ background-color: #ff8000 }
+        #legend .subnet-weak-nsg { 
+            background-color: #787878;
+            border-style: solid;
+            border-width: 2px;
+            border-color: #ff0033;
+        }
+        #legend .node-weak-nsg { 
+            background-color: #3182bd;
+            border-style: solid;
+            border-width: 2px;
+            border-color: #ff0033;
+        }
+        #legend .fiber{ border-color: #1f77b4 }
+        #legend .vpn{ border-color: purple }
+    </style>
+</head>
+<body>
+    <div id="legend">
+        <p><span class="circle node">&nbsp;</span>VM/SQL Server/Web App node</p>
+        <p><span class="circle gateway">&nbsp;</span>Gateway node</p>
+        <p><span class="circle vnet subnet">&nbsp;</span>VNet/Subnet node</p>
+        <p><span class="circle subnet-weak-nsg">&nbsp;</span>Subnet weak NSG node<t/p>
+        <p><span class="circle node-weak-nsg">&nbsp;</span>VM/SQL Server weak NSG node</p>
+        <p><span class="link vpn">&nbsp;</span>VPN link</p>
+    </div>
+    <!--<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.12/d3.js"></script>-->
+    <script src="libs/netjsongraph.js/lib/d3.min.js"></script>
+    <script src="libs/netjsongraph.js/src/netjsongraph.js"></script>
+    <!-- Define various properties for the Graph. Please refer to the netJSONGraph.js page on Github for additional information. -->
+    <script>
+        var force = d3.netJsonGraph("azure-subscription-nodes.json", {
+            linkDistance: 40,
+            charge: -900,
+            circleRadius: 10,
+            defaultStyle: false,
+            gravity: 0.1,
+            labelDx: '2em',
+            labelDy: '-1.3em',
+            nodeClassProperty: "nodeType",
+            linkClassProperty: "linkType"
+        });
+    </script>
+</body>
+</html>
