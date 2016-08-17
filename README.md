@@ -11,6 +11,11 @@ _Azurite_ was developed to assist penetration testers and auditors during the en
 * Download and install the Azure PowerShell Cmdlets ([How to install and configure Azure PowerShell](https://azure.microsoft.com/en-gb/documentation/articles/powershell-install-configure/)).
 * Download and install Python 2.7.
 * Download and install Firefox.
+* Clone the repository:
+	# git clone https://github.com/mwrlabs/Azurite.git
+* Get the submodule for netjsongraph.js:
+	# git submodule init
+	# git submodule update
 
 ## Azurite Explorer & Azurite Visualizer
 
