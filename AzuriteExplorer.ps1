@@ -51,8 +51,16 @@ Email: apostolis.mastoris[at]mwrinfosecurity.com
     # This is the secure option and most preferred.
     Login-AzureRmAccount
 
-    # Pring information for the Azure subscriptions available for the user.
-    Get-AzureRmSubscription
+    # Ask for an (optional) TenantId
+    $tenantId = Read-Host "Please provide a Tenant Id to perform the review (blank to leave to default)"
+
+    # Pring information for the Azure subscriptions available for the user
+    Write-Host "Tenant-Id:" $tenantId
+    if ($tenantID) {
+      Get-AzureRmSubscription -TenantId $tenantId
+    } else {
+      Get-AzureRmSubscription
+    }
 
     # Request from the user to input the corresponding subscription Id to use during the review.
     $subscriptionId = Read-Host "Please provide the Subscription Id of the subscription to perform the review"
