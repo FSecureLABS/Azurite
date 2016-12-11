@@ -269,6 +269,9 @@ Email: apostolis.mastoris[at]mwrinfosecurity.com
         [System.IO.File]::W‌​riteAllLines($azureSubscriptionConfigurationFilePath, $azureSubscriptionConfigurationContent, $Utf8NoBomEncoding)
         #>
 
+        # finally create a json file with all resources (as not all resource types are handled in a greater level of detail)
+        Get-AzureRmResource | ConvertTo-Json -Depth 10 | Out-File $(".\azure-cmdb_" + $subscriptionId + "_" + $context.Account +  ".json") -Encoding UTF8
+
         # Present information/statistics about the Azure subscription. 
         Write-Host "[*] Azure Subscription Information - Subscription Id $subscriptionId"
         Write-Host "    [-] Resource Groups: $($resourceGroups.Count)"
