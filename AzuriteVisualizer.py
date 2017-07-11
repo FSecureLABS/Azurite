@@ -39,25 +39,29 @@ def parseJson():
 
 	# For each JSON array iterate through the values and after each step that is completed,
 	# append the retrieved information in final JSON object.
+	print(type(data['subscriptionVNETs']))
 	for vnet in data['subscriptionVNETs']:
-		# Iterate through the Virtual Network properties.
+		#Iterate through the Virtual Network properties.
 		vnetNode = {}
 		vnetProperties = {}
 		vnetSourceNode = {}
+		print("Here is vnet")
+		#print(data['subscriptionVNETs']['vnetName'])
 
 		# Create the main values for the node.
 		id, vnetNode['id'] = id + 1, id
 		vnetProperties['nodeType'] = 'vnet'
-		vnetNode['label'] = vnet['vnetName']
+		#vnetNode['label'] = vnet['vnetName']
+		vnetNode['label'] = data['subscriptionVNETs']['vnetName']
 
 		# Create the values for the node's properties.
-		vnetProperties['location'] = vnet['vnetLocation']
-		vnetProperties['vnetAddressSpace'] = ', '.join(vnet['vnetAddressSpaces']['AddressPrefixes'])
+		vnetProperties['location'] = data['subscriptionVNETs']['vnetLocation']
+		vnetProperties['vnetAddressSpace'] = ', '.join(data['subscriptionVNETs']['vnetAddressSpaces']['AddressPrefixes'])
 
 		vnetNode['properties'] = vnetProperties
 		jsonOut['nodes'].append(vnetNode)
 
-		for subnet in vnet['vnetSubnets']:
+		for subnet in data['subscriptionVNETs']['vnetSubnets']:
 			# Iterate through the Virtual Network's subnet properties.
 			subnetNode = {}
 			subnetProperties = {}
@@ -74,7 +78,7 @@ def parseJson():
 
 			# Create the values for the node's properties.
 			subnetProperties['subnetAddressSpace'] = subnet['subnetAddressSpace']
-			subnetProperties['vnetName'] = vnet['vnetName']
+			subnetProperties['vnetName'] = data['subscriptionVNETs']['vnetName']
 
 			# Parse the subnet's Network Security Groups (NSGs) and retrieve the weak NSG rules. 
 			# Gateway Subnet cannot have NSGs.
@@ -139,7 +143,7 @@ def parseJson():
 						subnetItemProperties['privateIpAddress'] = ', '.join(vmPrivateIpAddresses)
 						if vmPublicIpAddresses:
 							subnetItemProperties['publicIpAddress'] = ', '.join(vmPublicIpAddresses)
-						subnetItemProperties['vnetName'] = vnet['vnetName']
+						subnetItemProperties['vnetName'] = data['subscriptionVNETs']['vnetName']
 						subnetItemProperties['subnetName'] = subnet['subnetName']
 						subnetItemProperties['vmOsEncrypted'] = subnetItem['vmEncryption']['osVolumeEncryption'] 
 						subnetItemProperties['vmDiskEncrypted'] = subnetItem['vmEncryption']['dataVolumesEncryption']
@@ -406,7 +410,7 @@ def connectGatewaysToGateways(jsonData, jsonOut):
 
 	# Iterate through the subscription components to identify the connections between the Gateways.
 	for vnet in jsonData['subscriptionVNETs']:
-		for subnet in vnet['vnetSubnets']:
+		for subnet in jsonData['subscriptionVNETs']['vnetSubnets']:
 			if 'subnetItems' in subnet:
 				for subnetItem in subnet['subnetItems']:
 					if (subnetItem['itemType'] == 'Virtual Network Gateway'):
