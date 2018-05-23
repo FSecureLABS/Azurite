@@ -39,13 +39,13 @@ def parseJson():
 
 	# For each JSON array iterate through the values and after each step that is completed,
 	# append the retrieved information in final JSON object.
-	print(type(data['subscriptionVNETs']))
+	#print(type(data['subscriptionVNETs']))
 	for vnet in data['subscriptionVNETs']:
 		#Iterate through the Virtual Network properties.
 		vnetNode = {}
 		vnetProperties = {}
 		vnetSourceNode = {}
-		print("Here is vnet")
+		#print("Here is vnet")
 		#print(data['subscriptionVNETs']['vnetName'])
 
 		# Create the main values for the node.
