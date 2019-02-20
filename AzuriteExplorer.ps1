@@ -17,7 +17,6 @@ function Review-AzureRmSubscription {
        [Parameter(Mandatory=$false)][string]$tenantId,
        [Parameter(Mandatory=$false)][string]$subscriptionId,
        [Parameter(Mandatory=$false)][string]$loggedInId,
-       [Parameter(Mandatory=$false)][switch]$loopAll
     )
 
 <#
