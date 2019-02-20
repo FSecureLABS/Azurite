@@ -12,32 +12,50 @@
     The function creates a number of JSON files that provide information about the various components in the Azure subscription.
 #>
 function Review-AzureRmSubscription {
+
+    param (
+       [Parameter(Mandatory=$false)][string]$tenantId,
+       [Parameter(Mandatory=$false)][string]$subscriptionId,
+       [Parameter(Mandatory=$false)][string]$loggedInId,
+       [Parameter(Mandatory=$false)][switch]$loopAll
+    )
+
 <#
     .SYNOPSIS
         Main function to retrieve the configuration of all the components in a given Azure subscription specified by the Subscription Id.
-        The function does not accept any parameters. The output is a number of JSON files that provide 
+        The function does not accept any parameters. The output is a number of JSON files that provide
         information about the various components in the Azure subscription.
     .EXAMPLE
         PS C:\> Review-AzureRmSubscription
-        
+
         Main function to retrieve the configuration of all the components in a given Azure subscription specified by the Subscription Id.
+
+    .PARAMETER TenantId
+    	Specifies the TennantID to use
+
+    .PARAMETER SubscriptionId
+    	Specifies the subscription to use
+
+    .PARAMETER LoggedInID
+    	Checks to see if supplied value is currently authenticated
+
 #>
 
 # Print script banner and version information.
-    Write-Host "   
- █████╗ ███████╗██╗   ██╗██████╗ ██╗████████╗███████╗                        
-██╔══██╗╚══███╔╝██║   ██║██╔══██╗██║╚══██╔══╝██╔════╝                        
-███████║  ███╔╝ ██║   ██║██████╔╝██║   ██║   █████╗                          
-██╔══██║ ███╔╝  ██║   ██║██╔══██╗██║   ██║   ██╔══╝                          
-██║  ██║███████╗╚██████╔╝██║  ██║██║   ██║   ███████╗                        
-╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚═╝   ╚═╝   ╚══════╝                        
-                                                                             
-            ███████╗██╗  ██╗██████╗ ██╗      ██████╗ ██████╗ ███████╗██████╗ 
+    Write-Host "
+ █████╗ ███████╗██╗   ██╗██████╗ ██╗████████╗███████╗
+██╔══██╗╚══███╔╝██║   ██║██╔══██╗██║╚══██╔══╝██╔════╝
+███████║  ███╔╝ ██║   ██║██████╔╝██║   ██║   █████╗
+██╔══██║ ███╔╝  ██║   ██║██╔══██╗██║   ██║   ██╔══╝
+██║  ██║███████╗╚██████╔╝██║  ██║██║   ██║   ███████╗
+╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚═╝   ╚═╝   ╚══════╝
+
+            ███████╗██╗  ██╗██████╗ ██╗      ██████╗ ██████╗ ███████╗██████╗
             ██╔════╝╚██╗██╔╝██╔══██╗██║     ██╔═══██╗██╔══██╗██╔════╝██╔══██╗
             █████╗   ╚███╔╝ ██████╔╝██║     ██║   ██║██████╔╝█████╗  ██████╔╝
             ██╔══╝   ██╔██╗ ██╔═══╝ ██║     ██║   ██║██╔══██╗██╔══╝  ██╔══██╗
             ███████╗██╔╝ ██╗██║     ███████╗╚██████╔╝██║  ██║███████╗██║  ██║
-            ╚══════╝╚═╝  ╚═╝╚═╝     ╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝                                                             
+            ╚══════╝╚═╝  ╚═╝╚═╝     ╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝
 
 Version: 0.6 Beta
 Author: Apostolos Mastoris (@Lgrec0)
@@ -49,10 +67,36 @@ Email: apostolis.mastoris[at]mwrinfosecurity.com
 
     # Login to Azure service using Microsoft or organisation credentials.
     # This is the secure option and most preferred.
-    Login-AzureRmAccount
+    # only log
 
-    # Ask for an (optional) TenantId
-    $tenantId = Read-Host "Please provide a Tenant Id to perform the review (blank to leave to default)"
+    if ($loggedInId) {
+        Write-Host "Checking to see if user is logged in.  Supplied Id:" $loggedInId
+        if ([string]::IsNullOrEmpty($(Get-AzureRmContext).Account)) { 
+            Write-Host "No Session Found, Login Required:"
+            Login-AzureRmAccount
+        }
+
+        if ($(Get-AzureRmContext).Account.id -eq $loggedInId) {
+            Write-Host "User logged in. No auth required"
+
+        } else {
+            Write-Host "User logged in does not match supplied value, update value and re execute or continue with auth."
+            Write-Host "Supplied Value was:" $loggedInId
+            Write-Host "Authenticated User was:" $(Get-AzureRmContext).Account.id 
+            Login-AzureRmAccount
+
+        }
+
+    }else{
+        Login-AzureRmAccount
+    }
+
+
+    if (!$TenantId) {
+      # Ask for an (optional) TenantId
+      Write-Host "No TenantId supplied at execution."
+      $tenantId = Read-Host "Please provide a Tenant Id to perform the review (blank to leave to default)"
+    }
 
     # Pring information for the Azure subscriptions available for the user
     Write-Host "Tenant-Id:" $tenantId
@@ -62,9 +106,13 @@ Email: apostolis.mastoris[at]mwrinfosecurity.com
       Get-AzureRmSubscription
     }
 
-    # Request from the user to input the corresponding subscription Id to use during the review.
-    $subscriptionId = Read-Host "Please provide the Subscription Id of the subscription to perform the review"
+    if (!$subscriptionId) {
+      # Ask for an (optional) TenantId
+      # Request from the user to input the corresponding subscription Id to use during the review.
+        $subscriptionId = Read-Host "Please provide the Subscription Id of the subscription to perform the review"
+    }
     
+
     # Get the current state of the subscription. This will assist in determining whether it is a good subscription
     # to use in the review.
     $subscriptionState = Get-AzureRmSubscription -SubscriptionId $subscriptionId | Select-Object -ExpandProperty State
@@ -85,13 +133,13 @@ Email: apostolis.mastoris[at]mwrinfosecurity.com
 
     # Get the current context for the execution of the script.
     $context = Get-AzureRmContext
-    
+
     # Get the current role of the user that has logged in.
     $currentUserRole = Get-AzureRmRoleAssignment -IncludeClassicAdministrators | Where-Object { $_.DisplayName -eq $context.Account } | Select -ExpandProperty RoleDefinitionName
-    
+
     # Print current user's role.
     Write-Host "[*] Current user's role:" $currentUserRole
-    
+
     # Get all the resource groups in the given subscription.
     $resourceGroups = Get-AzureRmResourceGroup
 
@@ -99,18 +147,18 @@ Email: apostolis.mastoris[at]mwrinfosecurity.com
     if ($subscriptionId) {
         $currentSubscription = Select-AzureRmSubscription -SubscriptionId $subscriptionId  -WarningAction SilentlyContinue
         $currentSubscription
-        
+
         # Call to retrieve subscription's network configuration.
         $subscriptionConfiguration = Get-CustomAzureRmSubscriptionNetworkConfiguration
-    
+
         # Populate the object that will contain all the information for the subscription's configuration including information for various resources.
         # This object will become available as JSON.
         $objSubscriptionConfigurationProperties = [ordered] @{}
         if ($subscriptionConfiguration) {
             $objSubscriptionConfigurationProperties.Add('subscriptionVNETs', $subscriptionConfiguration)
         }
-   
-        # Instantiate arrays for each of the resources that will be retrieved from the helper functions.     
+
+        # Instantiate arrays for each of the resources that will be retrieved from the helper functions.
         $vmInstancesInfo = @()
         $sqlServersInfo = @()
         $webAppsInfo = @()
@@ -137,8 +185,8 @@ Email: apostolis.mastoris[at]mwrinfosecurity.com
 
                     $vmInstancesInfo += $objVMInstancesInfo
                 }
-            } else { 
-                Write-Host "[*] No Virtual Machines were found." 
+            } else {
+                Write-Host "[*] No Virtual Machines were found."
             }
 
             # Retrieve configuration for the web applications in the resource group.
@@ -152,8 +200,8 @@ Email: apostolis.mastoris[at]mwrinfosecurity.com
 
                     $webAppsInfo += $objWebAppsInfo
                 }
-            } else { 
-                Write-Host "[*] No Web Applications were found." 
+            } else {
+                Write-Host "[*] No Web Applications were found."
             }
 
             # Retrieve configuration for the SQL Servers in the resource group.
@@ -202,12 +250,12 @@ Email: apostolis.mastoris[at]mwrinfosecurity.com
         }
 
         # Export configuration of Virtual Machines to JSON and store in a file.
-        if ($vmInstancesInfo) { 
+        if ($vmInstancesInfo) {
             $vmInstancesInfo | ConvertTo-Json -Depth 6 | Out-File $(".\azure-vms_" + $subscriptionId + "_" + $context.Account + ".json") -Encoding UTF8
             <#
             $azureVMContent = $vmInstancesInfo | ConvertTo-Json -Depth 6 | Out-File $()
-            $azureVMFilePath = ".\azure-vms_" + $subscriptionId + "_" + $context.Account + ".json" 
-            
+            $azureVMFilePath = ".\azure-vms_" + $subscriptionId + "_" + $context.Account + ".json"
+
             $Utf8NoBomEncoding = New-Object System.Text.UTF8Encoding($False)
             [System.IO.File]::W‌​riteAllLines($azureVMFilePath, $azureVMContent, $Utf8NoBomEncoding)
             #>
@@ -216,7 +264,7 @@ Email: apostolis.mastoris[at]mwrinfosecurity.com
         # Export configuration of SQL Servers and SQL Databases in JSON and store in a file.
         if ($sqlServersInfo) {
             $sqlServersInfo | ConvertTo-Json -Depth 6 | Out-File $(".\azure-sqlservers_" + $subscriptionId + "_" + $context.Account +  ".json") -Encoding UTF8
-            
+
             <#
             $azureSqlServersContent = $sqlServersInfo | ConvertTo-Json -Depth 6
             $azureSqlServersFilePath = ".\azure-sqlservers_" + $subscriptionId + "_" + $context.Account +  ".json"
@@ -231,7 +279,7 @@ Email: apostolis.mastoris[at]mwrinfosecurity.com
         # Export configuration of all the Web Applications in JSON and store in a file.
         if ($webAppsInfo) {
             $webAppsInfo | ConvertTo-Json -Depth 3 | Out-File $(".\azure-websites_" + $subscriptionId + "_" + $context.Account +  ".json") -Encoding UTF8
-            
+
             <#
             $azureWebAppsContent = $webAppsInfo | ConvertTo-Json -Depth 6
             $azureWebAppsFilePath = ".\azure-websites_" + $subscriptionId + "_" + $context.Account +  ".json"
@@ -251,7 +299,7 @@ Email: apostolis.mastoris[at]mwrinfosecurity.com
         # Export cofniguration of the Azure Key Vaults in JSON and store in a file.
         if ($keyVaultsInfo) {
             $keyVaultsInfo | ConvertTo-Json -Depth 3 | Out-File $(".\azure-key-vaults_" + $subscriptionId + "_" + $context.Account +  ".json") -Encoding UTF8
-            
+
             <#
             $azureKeyVaultsContent = $keyVaultsInfo | ConvertTo-Json -Depth 6
             $azureKeyVaultsFilePath = ".\azure-key-vaults_" + $subscriptionId + "_" + $context.Account +  ".json"
@@ -280,7 +328,7 @@ Email: apostolis.mastoris[at]mwrinfosecurity.com
         # finally create a json file with all resources (as not all resource types are handled in a greater level of detail)
         Get-AzureRmResource | ConvertTo-Json -Depth 10 | Out-File $(".\azure-cmdb_" + $subscriptionId + "_" + $context.Account +  ".json") -Encoding UTF8
 
-        # Present information/statistics about the Azure subscription. 
+        # Present information/statistics about the Azure subscription.
         Write-Host "[*] Azure Subscription Information - Subscription Id $subscriptionId"
         Write-Host "    [-] Resource Groups: $($resourceGroups.Count)"
         Write-Host "    [-] Virtual Networks (VNets): $($objSubscriptionConfiguration.subscriptionVNETs.Length)"
@@ -298,17 +346,17 @@ Email: apostolis.mastoris[at]mwrinfosecurity.com
         Write-Host "    [-] Azure SQL Databases: $subscriptionTotalSqlDatabases"
         Write-Host "    [-] Azure Web Applications: $($webAppsInfo.Length)"
     } else {
-        Write-Host "[!] Please provide Subscription Id." 
+        Write-Host "[!] Please provide Subscription Id."
     }
 }
 
 <#
-    .DESCRIPTION 
+    .DESCRIPTION
     Helper function to retrieve configuration information for Windows systems.
 
     .PARAMETER vmInstanceName
     The Virtual Machine's name.
-    
+
     .PARAMETER vInstanceResourceGroupName
     The Resource Group's name.
 
@@ -320,8 +368,8 @@ function Get-CustomAzureRmWindowsVM {
         [String] $vmInstanceName,
         [String] $vmInstanceResourceGroupName
     )
-    
-    Write-Host "[+] Retrieve Virtual Machine's $vmInstanceResourceGroupName - $vmInstanceName configuration." 
+
+    Write-Host "[+] Retrieve Virtual Machine's $vmInstanceResourceGroupName - $vmInstanceName configuration."
 
     # Get VM object based on the provided parameters.
     $vmInstance = Get-AzureRmVM -Name $vmInstanceName -ResourceGroupName $vmInstanceResourceGroupName
@@ -331,7 +379,7 @@ function Get-CustomAzureRmWindowsVM {
 
     # Retrieve the encryption configuration.
     $vmInstanceEncryption =  Get-CustomAzureRmVMEncryption -vmInstance $vmInstance
-   
+
     # Retrieve the Network Security Groups (NSGs) configuration.
     $vmInstanceNetworkSecurityGroups = Get-CustomAzureRmNetworkSecurityGroups -vmInstance $vmInstance
 
@@ -349,7 +397,7 @@ function Get-CustomAzureRmWindowsVM {
         vmNetworkSecurityGroups = $vmInstanceNetworkSecurityGroups
         vmEncryption = $vmInstanceEncryption
     }
-    
+
     # If network security extensions are available, include it in the object.
     if ($vmInstanceSecurityExtensions) {
         $objVMInstanceInfoProperties.Add('vmSecurityExtensions', $vmInstanceSecurityExtensions)
@@ -357,7 +405,7 @@ function Get-CustomAzureRmWindowsVM {
 
     # Create the object containing VM's details.
     $objVMInstanceInfo = New-Object -TypeName PSObject -Property $objVMInstanceInfoProperties
-    
+
     # Return the object to the function call.
     return $objVMInstanceInfo
 }
@@ -365,12 +413,12 @@ function Get-CustomAzureRmWindowsVM {
 
 
 <#
-    .DESCRIPTION 
+    .DESCRIPTION
     Helprer fuction to retrieve configuration information for Linux systems.
 
     .PARAMETER vmInstanceName
     The Virtual Machine's name.
-    
+
     .PARAMETER vInstanceResourceGroupName
     The Resource Group's name.
 
@@ -382,22 +430,22 @@ function Get-CustomAzureRmLinuxVM {
         [String] $vmInstanceName,
         [String] $vmInstanceResourceGroupName
     )
-  
-    Write-Host "[+] Retrieve Virtual Machine's $vmInstanceResourceGroupName - $vmInstanceName configuration." 
+
+    Write-Host "[+] Retrieve Virtual Machine's $vmInstanceResourceGroupName - $vmInstanceName configuration."
 
     # Get VM object based on the provided parameters.
     $vmInstance = Get-AzureRmVM -Name $vmInstanceName -ResourceGroupName $vmInstanceResourceGroupName
-    
+
     # Retrieve the network configuration.
     $vmInstanceNetworkConfiguration = Get-CustomAzureRmNetworkConfiguration -vmInstance $vmInstance
 
     # System's additional configuration
     if ($vmInstance.OSProfile.LinuxConfiguration.DisablePasswordAuthentication) { $passwordAuthenticationStatus = 'Disabled' }
     else { $passwordAuthenticationStatus = 'Enabled'}
-    
+
     # Retrieve the encryption configuration.
     $vmInstanceEncryption = Get-CustomAzureRmVMEncryption -vmInstance $vmInstance
-    
+
     # Retrieve the Network Security Groups (NSGs) configuration.
     $vmInstanceNetworkSecurityGroups = Get-CustomAzureRmNetworkSecurityGroups -vmInstance $vmInstance
 
@@ -423,19 +471,19 @@ function Get-CustomAzureRmLinuxVM {
 
     # Create the object containing VM's details.
     $objVMInstanceInfo = New-Object -TypeName PSObject -Property $objVMInstanceInfoProperties
-    
+
     # Return the object to the function call.
     return $objVMInstanceInfo
 
 }
 
 <#
-    .DESCRIPTION 
+    .DESCRIPTION
     Helprer function to retrieve configuration for Azure SQL Server systems.
 
     .PARAMETER sqlServer
     The Azure SQL Server instance which has been retrieved from a previous operation.
-    
+
     .OUTPUT
     The function returns an object populated with the Azure SQL Server's details.
 #>
@@ -450,34 +498,34 @@ function Get-CustomAzureRmSqlServer {
         sqlServerAdministratorLogin = $sqlServer.SqlAdministratorLogin
         sqlServerVersion = $sqlServer.ServerVersion
     }
-    
+
     # Retrieve the Azure Active Directory administrator that has been granted access to the Azure SQL Server.
     # If a user has been configured, pupulate the object.
     $sqlServerADAdministrator = Get-AzureRmSqlServerActiveDirectoryAdministrator -ServerName $sqlServer.ServerName -ResourceGroupName $sqlServer.ResourceGroupName
-    if ($sqlServerADAdministrator) { 
-        $objSqlServerInfoProperties.Add('sqlServerADAdministrator', $sqlServerADAdministrator) 
+    if ($sqlServerADAdministrator) {
+        $objSqlServerInfoProperties.Add('sqlServerADAdministrator', $sqlServerADAdministrator)
     }
 
     # Retrieve the Azure SQL Server's auditing policy.
     $sqlServerAuditingPolicy = Get-AzureRmSqlServerAuditingPolicy -ServerName $sqlServer.ServerName -ResourceGroupName $sqlServer.ResourceGroupName
     $objSqlServerInfoProperties.Add('sqlServerAuditingPolicy', $sqlServerAuditingPolicy)
-    
+
     # Retrieve the Azure SQL Server's communication links.
     $sqlServerCommunicationLinks = Get-AzureRmSqlServerCommunicationLink -ResourceGroupName $sqlServer.ResourceGroupName -ServerName $sqlServer.ServerName
-    
+
     # In case that there are Azure SQL Server communication links, populate the object which each one of them recursively.
     if ($sqlServerCommunicationLinks) {
         $sqlServerCommunicationLinkInfo = @()
         $index = 1
         foreach ($sqlServerCommunicationLink in $sqlServerCommunicationLinks) {
-            $sqlServerCommunicationLinkInfo += $sqlServerCommunicationLink                
+            $sqlServerCommunicationLinkInfo += $sqlServerCommunicationLink
         }
 
         $objSqlServerInfoProperties.Add('sqlServerCommunicationLinks', $sqlServerCommunicationLinkInfo)
     }
-        
-    # Retrieve the Azure SQL Server's firewall rules. 
-    $sqlServerFirewallRules = Get-AzureRmSqlServerFirewallRule -ResourceGroupName $sqlServer.ResourceGroupName -ServerName $sqlServer.ServerName        
+
+    # Retrieve the Azure SQL Server's firewall rules.
+    $sqlServerFirewallRules = Get-AzureRmSqlServerFirewallRule -ResourceGroupName $sqlServer.ResourceGroupName -ServerName $sqlServer.ServerName
     $sqlServerFirewallRuleInfo = @()
     $index = 1
     foreach ($sqlServerFirewallRule in $sqlServerFirewallRules) {
@@ -485,10 +533,10 @@ function Get-CustomAzureRmSqlServer {
     }
 
     $objSqlServerInfoProperties.Add('sqlServerFirewallRules', $sqlServerFirewallRuleInfo)
-    
+
     # Retrieve the Azure SQL Databases that are hosted on the current Azure SQL Server.
     $sqlServerDatabases = Get-AzureRmSqlDatabase -ResourceGroupName $sqlServer.ResourceGroupName -ServerName $sqlServer.ServerName
-        
+
     # In case there are any Azure SQL Databases hosted on the current Azure SQL Server, retrieve the details for each of the Azure SQL Database, recursively.
     if ($sqlServerDatabases) {
         $sqlServerDatabaseInfo = @()
@@ -496,15 +544,15 @@ function Get-CustomAzureRmSqlServer {
             # Retrieve the configuration details for an Azure SQL Database.
             $objSqlServerDatabaseInfo = Get-CustomAzureRmSqlDatabase -sqlDatabase $sqlServerDatabase
 
-            
-            if ($objSqlServerDatabaseInfo) { 
-                $sqlServerDatabaseInfo += $objSqlServerDatabaseInfo 
+
+            if ($objSqlServerDatabaseInfo) {
+                $sqlServerDatabaseInfo += $objSqlServerDatabaseInfo
             }
         }
 
         $objSqlServerInfoProperties.Add('sqlServerDatabases', $sqlServerDatabaseInfo)
     }
-    
+
     # Create the object containing Azure SQL Server's details.
     $objSqlServerInfo = New-Object -TypeName PSObject -Property $objSqlServerInfoProperties
 
@@ -514,12 +562,12 @@ function Get-CustomAzureRmSqlServer {
 }
 
 <#
-    .DESCRIPTION 
+    .DESCRIPTION
     Helprer function to retrieve the details for the Azure SQL Databases.
 
     .PARAMETER $sqlDatabase
     The Azure SQL Database instance that has been retrieved during a previous operation.
-    
+
     .OUTPUT
     The function returns an object populated with the Azure SQL Database's details.
 #>
@@ -541,8 +589,8 @@ function Get-CustomAzureRmSqlDatabase {
 
         # Retrieve the Azure SQL Database's auditing policy.
         $sqlDatabaseAuditingPolicy = Get-AzureRmSqlDatabaseAuditingPolicy -ResourceGroupName $sqlDatabase.ResourceGroupName -ServerName $sqlDatabase.ServerName -DatabaseName $sqlDatabase.DatabaseName
-        if ($sqlDatabaseAuditingPolicy) { 
-            $objSqlDatabaseInfoProperties.Add('sqlDatabaseAuditingPolicy', $sqlDatabaseAuditingPolicy) 
+        if ($sqlDatabaseAuditingPolicy) {
+            $objSqlDatabaseInfoProperties.Add('sqlDatabaseAuditingPolicy', $sqlDatabaseAuditingPolicy)
         }
 
         # Retrieve the Azure SQL Database's data masking policy.
@@ -551,22 +599,22 @@ function Get-CustomAzureRmSqlDatabase {
 
             # Initiliase the object that returns the data masking policy.
             $objSqlDatabaseDataMaskingPolicy = New-Object PSObject
-            if ($sqlDatabaseDataMaskingPolicy.DataMaskingState -eq 2) { 
-                $objSqlDatabaseDataMaskingPolicy | Add-Member NoteProperty 'DataMaskingState' 'Disabled' 
+            if ($sqlDatabaseDataMaskingPolicy.DataMaskingState -eq 2) {
+                $objSqlDatabaseDataMaskingPolicy | Add-Member NoteProperty 'DataMaskingState' 'Disabled'
             }
-            else { 
-                $objSqlDatabaseDataMaskingPolicy | Add-Member NoteProperty 'DataMaskingState' $sqlDatabaseDataMaskingPolicy.DataMaskingState 
+            else {
+                $objSqlDatabaseDataMaskingPolicy | Add-Member NoteProperty 'DataMaskingState' $sqlDatabaseDataMaskingPolicy.DataMaskingState
             }
-            
+
             # Retrieve the users that are able to view the data without masking.
             $objSqlDatabaseDataMaskingPolicy | Add-Member NoteProperty 'PrivilegedUsers' $sqlDatabaseDataMaskingPolicy.PrivilegedUsers
-        
+
             $objSqlDatabaseInfoProperties.Add('sqlDatabaseDataMaskingPolicy', $objSqlDatabaseDataMaskingPolicy)
         }
 
         # Retrieve the Azure SQL Database's connection policy details (connection strings) for various technologies.
         $sqlDatabaseSecureConnectionPolicy = Get-AzureRmSqlDatabaseSecureConnectionPolicy -ResourceGroupName $sqlDatabase.ResourceGroupName -ServerName $sqlDatabase.ServerName -DatabaseName $sqlDatabase.DatabaseName
-        if ($sqlDatabaseSecureConnectionPolicy) { 
+        if ($sqlDatabaseSecureConnectionPolicy) {
             $objSqlDatabaseSecureConnectionPolicy = New-Object PSObject
             $objSqlDatabaseSecureConnectionPolicy | Add-Member NoteProperty 'ProxyDnsName' $sqlDatabaseSecureConnectionPolicy.ProxyDnsName
             $objSqlDatabaseSecureConnectionPolicy | Add-Member NoteProperty 'ProxyPort' $sqlDatabaseSecureConnectionPolicy.ProxyPort
@@ -574,35 +622,35 @@ function Get-CustomAzureRmSqlDatabase {
             $objSqlDatabaseSecureConnectionPolicyConnectionStrings = New-Object PSObject
             $objSqlDatabaseSecureConnectionPolicyConnectionStrings | Add-Member NoteProperty 'AdoNetConnectionString' $sqlDatabaseSecureConnectionPolicy.ConnectionStrings.AdoNetConnectionString
             $objSqlDatabaseSecureConnectionPolicyConnectionStrings | Add-Member NoteProperty 'JdbcConnectionString' $sqlDatabaseSecureConnectionPolicy.ConnectionStrings.JdbcConnectionString
-            
+
             # Currently having problems in converting to JSON.
             # $objSqlDatabaseSecureConnectionPolicyConnectionStrings | Add-Member NoteProperty 'PhpConnectionString' $sqlDatabaseSecureConnectionPolicy.ConnectionStrings.PhpConnectionString
-            
+
             $objSqlDatabaseSecureConnectionPolicyConnectionStrings | Add-Member NoteProperty 'OdbcConnectionString' $sqlDatabaseSecureConnectionPolicy.ConnectionStrings.OdbcConnectionString
             $objSqlDatabaseSecureConnectionPolicy | Add-Member NoteProperty 'ConnectionStrings' $objSqlDatabaseSecureConnectionPolicyConnectionStrings
 
             # Check whether secure connection policy is enforced.
-            if ( $sqlDatabaseSecureConnectionPolicy.SecureConnectionState -eq 1 ) { 
-                $objSqlDatabaseSecureConnectionPolicy | Add-Member NoteProperty 'SecureConnectionState' 'Optional' 
+            if ( $sqlDatabaseSecureConnectionPolicy.SecureConnectionState -eq 1 ) {
+                $objSqlDatabaseSecureConnectionPolicy | Add-Member NoteProperty 'SecureConnectionState' 'Optional'
             }
-            else {  
-                $objSqlDatabaseSecureConnectionPolicy | Add-Member NoteProperty 'SecureConnectionState' $sqlDatabaseSecureConnectionPolicy.SecureConnectionState 
+            else {
+                $objSqlDatabaseSecureConnectionPolicy | Add-Member NoteProperty 'SecureConnectionState' $sqlDatabaseSecureConnectionPolicy.SecureConnectionState
             }
-        
-            $objSqlDatabaseInfoProperties.Add('sqlDatabaseSecureConnectionPolicy', $objSqlDatabaseSecureConnectionPolicy) 
+
+            $objSqlDatabaseInfoProperties.Add('sqlDatabaseSecureConnectionPolicy', $objSqlDatabaseSecureConnectionPolicy)
         }
-        
+
         # Retrieve the Azure SQL Database's threat detection policy details.
         $sqlDatabaseThreatDetectionPolicy = Get-AzureRmSqlDatabaseThreatDetectionPolicy -ResourceGroupName $sqlDatabase.ResourceGroupName -ServerName $sqlDatabase.ServerName -DatabaseName $sqlDatabase.DatabaseName
         if ($sqlDatabaseThreatDetectionPolicy) {
-            
+
             $objsqlDatabaseThreadDetectionPolicy = New-Object PSObject
-            
-            if ($sqlDatabaseThreatDetectionPolicy.ThreatDetectionState -eq 2) { 
-                $objsqlDatabaseThreadDetectionPolicy | Add-Member NoteProperty 'ThreatDetectionState' 'New' 
+
+            if ($sqlDatabaseThreatDetectionPolicy.ThreatDetectionState -eq 2) {
+                $objsqlDatabaseThreadDetectionPolicy | Add-Member NoteProperty 'ThreatDetectionState' 'New'
             }
-            else { 
-                $objsqlDatabaseThreadDetectionPolicy | Add-Member NoteProperty 'ThreatDetectionState' $sqlDatabaseThreatDetectionPolicy.ThreatDetectionState 
+            else {
+                $objsqlDatabaseThreadDetectionPolicy | Add-Member NoteProperty 'ThreatDetectionState' $sqlDatabaseThreatDetectionPolicy.ThreatDetectionState
             }
 
             $objsqlDatabaseThreadDetectionPolicy | Add-Member NoteProperty 'NotificationRecipientsEmails' $sqlDatabaseThreatDetectionPolicy.NotificationRecipientsEmails
@@ -610,18 +658,18 @@ function Get-CustomAzureRmSqlDatabase {
             $objsqlDatabaseThreadDetectionPolicy | Add-Member NoteProperty 'ExcludedDetectionTypes' $sqlDatabaseThreatDetectionPolicy.ExcludedDetectionTypes
 
             $objSqlDatabaseInfoProperties.Add('sqlDatabaseThreatDetectionPolicy', $objSqlDatabaseThreatDetectionPolicy)
-        
+
         }
-        
-        # Retrieve the configuration for the Azure SQL Database's Transparent Data Encryption (TDE). 
+
+        # Retrieve the configuration for the Azure SQL Database's Transparent Data Encryption (TDE).
         $sqlDatabaseTransparentDataEncryption = Get-AzureRmSqlDatabaseTransparentDataEncryption -ResourceGroupName $sqlDatabase.ResourceGroupName -ServerName $sqlDatabase.ServerName -DatabaseName $sqlDatabase.DatabaseName
-        if ( $sqlDatabaseTransparentDataEncryption.State -eq 1 ) { 
-            $objSqlDatabaseInfoProperties.Add('sqlDatabaseTransparentDataEncryption', 'Disabled') 
+        if ( $sqlDatabaseTransparentDataEncryption.State -eq 1 ) {
+            $objSqlDatabaseInfoProperties.Add('sqlDatabaseTransparentDataEncryption', 'Disabled')
         }
-        else { 
+        else {
             $objSqlDatabaseInfoProperties.Add('sqlDatabaseTransparentDataEncryption','Enabled')
         }
-        
+
         # Create the object containing Azure SQL Database's details.
         $objSqlDatabaseInfo = New-Object -TypeName PSObject -Property $objSqlDatabaseInfoProperties
 
@@ -635,7 +683,7 @@ function Get-CustomAzureRmSqlDatabase {
 
 
 <#
-    .DESCRIPTION 
+    .DESCRIPTION
     Helprer function to retrieve the network configuration for VM's and VNET Gateways.
 
     .PARAMETER $vmInstance
@@ -652,10 +700,10 @@ function Get-CustomAzureRmNetworkConfiguration {
         [Microsoft.Azure.Commands.Compute.Models.PSVirtualMachine] $vmInstance,
         [Microsoft.Azure.Commands.Network.Models.PSVirtualNetworkGateway] $gatewayInstance
     )
-    
+
     # Check if the cmdlet was called with input a VM instance.
     if ($vmInstance) {
-        
+
         # Get the network interface IDs of the VM.
         $vmNetworkInterfaceIds = $vmInstance.NetworkInterfaceIDs
 
@@ -663,13 +711,13 @@ function Get-CustomAzureRmNetworkConfiguration {
         # For each VM network interface retrieve the configuration and store it in an object.
         foreach ($vmNetworkInterfaceId in $vmNetworkInterfaceIds) {
             # Get the name of the network interface from the network interface Id.
-            # The format of a network interface Id is: 
+            # The format of a network interface Id is:
             #/subscriptions/<SubscriptionId>/resourceGroups/<ResourceGroup>/providers/Microsoft.Network/networkInterfaces/windows311400
             $vmNetworkInterfaceName = $vmNetworkInterfaceId | Split-Path -Leaf
-        
+
             # Retrieve network inteface details.
             $vmNetworkInterfaceConfig = Get-AzureRmNetworkInterface -Name $vmNetworkInterfaceName -ResourceGroupName $vmInstance.ResourceGroupName
-        
+
             $vmNetworkInterfaceIpConfigurationInfo = @()
             # Each VM can have multiple interfaces (IpConfigurations)
             # Create an array of all the IpConfigurations.
@@ -680,12 +728,12 @@ function Get-CustomAzureRmNetworkConfiguration {
                 $objVMNetworkInterfaceIpConfigurationInfo | Add-Member 'vmNetworkConfigurationPrivateIpAddressAllocationMethod' $ipConfiguration.PrivateIpAllocationMethod
                 $objVMNetworkInterfaceIpConfigurationInfo | Add-Member 'vmNetworkConfigurationMacAddress' $ipConfiguration.MacAddress
 
-                # The VM references the public IP address interface separately. 
+                # The VM references the public IP address interface separately.
                 # Get the name of the public IP address interface, if available.
                 if ($ipConfiguration.PublicIpAddress) {
                     $vmNetworkInterfaceIpConfigurationPublicIpInterfaceName = ($ipConfiguration.PublicIpAddress.Id) | Split-Path -Leaf
-                
-            
+
+
                     # Get the VM IpConfiguration's public IP address and populate the object.
                     $objVMNetworkInterfaceIpConfigurationPublicIp = Get-AzureRmPublicIpAddress -Name $vmNetworkInterfaceIpConfigurationPublicIpInterfaceName -ResourceGroupName $vmInstance.ResourceGroupName
                     $objVMNetworkInterfaceIpConfigurationInfo | Add-Member 'vmNetworkConfigurationPublicIpAddress' $objVMNetworkInterfaceIpConfigurationPublicIp.IpAddress
@@ -698,8 +746,8 @@ function Get-CustomAzureRmNetworkConfiguration {
 
                 $objVMNetworkInterfaceIpConfigurationInfo | Add-Member 'vmNetworkConfigurationVNETName' $vmVNETName
                 $objVMNetworkInterfaceIpConfigurationInfo | Add-Member 'vmNetworkConfigurationSubnetName' $vmVNETSubnetName
-            
-               
+
+
                 # TODO: Routing configuration.
 
 
@@ -712,7 +760,7 @@ function Get-CustomAzureRmNetworkConfiguration {
             $objVMNetworkInterfaceInfo | Add-Member 'vmNetworkConfigurationDNSSettings' $vmNetworkInterfaceConfig.DnsSettingsText
             $objVMNetworkInterfaceInfo | Add-Member 'vmNetworkConfigurationIpForwarding' $vmNetworkInterfaceConfig.EnableIPForwarding
 
-            $vmNetworkInterfaceInfo += $objVMNetworkInterfaceInfo   
+            $vmNetworkInterfaceInfo += $objVMNetworkInterfaceInfo
         }
 
         return $vmNetworkInterfaceInfo
@@ -723,32 +771,32 @@ function Get-CustomAzureRmNetworkConfiguration {
         # Retrieve the information for each VNet Gateway.
         $virtualNetworkGatewayIpConfigurationInfo = @()
         foreach ($virtualNetworkGatewayIpConfiguration in $virtualNetworkGatewayInstance.IpConfigurations) {
-                                           
+
             $objVirtualNetworkGatewayIpConfigurationInfo = New-Object PSObject
             $objVirtualNetworkGatewayIpConfigurationInfo | Add-Member NoteProperty 'virtualNetworkGatewayPrivateIpAddress' $virtualNetworkGatewayIpConfiguration.PrivateIpAddress
             $objVirtualNetworkGatewayIpConfigurationInfo | Add-Member NoteProperty 'virtualNetworkGatewayPrivateIpAddressAllocationMethod' $virtualNetworkGatewayIpConfiguration.PrivateIpAllocationMethod
             # $objVirtualNetworkGatewayIpConfigurationInfo | Add-Member NoteProperty 'virtualNetworkGatewayMacAddress' $virtualNetworkGatewayIpConfiguration.MacAddress
-            
-            # The VNet Gateway references the public IP address interface separately.          
+
+            # The VNet Gateway references the public IP address interface separately.
             # Get the name of public IP address interface, if available.
             if ($virtualNetworkGatewayIpConfiguration.PublicIpAddress) {
                 $virtualNetworkGatewayIpConfigurationPublicIpInterfaceName = ($virtualNetworkGatewayIpConfiguration.PublicIpAddress.Id) | Split-Path -Leaf
-            
+
                 # Get VNet Gateway Ip Configuration's public IP address.
                 $virtualNetworkGatewayIpConfigurationPublicIpAddress = Get-AzureRmPublicIpAddress -Name $virtualNetworkGatewayIpConfigurationPublicIpInterfaceName -ResourceGroupName $virtualNetworkGatewayInstance.ResourceGroupName
                 $objVirtualNetworkGatewayIpConfigurationInfo | Add-Member 'virtualNetworkGatewayPublicIpAddress' $virtualNetworkGatewayIpConfigurationPublicIpAddress.IpAddress
                 $objVirtualNetworkGatewayIpConfigurationInfo | Add-Member 'virtualNetworkGatewayPublicIpAddressAllocationMethod' $virtualNetworkGatewayIpConfigurationPublicIpAddress.PublicIpAllocationMethod
             }
-                                  
+
             $virtualNetworkGatewayIpConfigurationInfo += $objVirtualNetworkGatewayIpConfigurationInfo
         }
-        
+
         return $virtualNetworkGatewayIpConfigurationInfo
     }
 }
 
 <#
-    .DESCRIPTION 
+    .DESCRIPTION
     Helprer function to retrieve the encryption status and configuration for the VMs.
 
     .PARAMETER $vmInstance
@@ -759,7 +807,7 @@ function Get-CustomAzureRmNetworkConfiguration {
 #>
 function Get-CustomAzureRmVMEncryption {
     Param ([Microsoft.Azure.Commands.Compute.Models.PSVirtualMachine] $vmInstance)
-    
+
     # Retrieve the encryption status for the VM.
     $vmEncryptionStatus = Get-AzureRmVMDiskEncryptionStatus -ResourceGroupName $vmInstance.ResourceGroupName -VMName $vmInstance.Name
 
@@ -768,31 +816,31 @@ function Get-CustomAzureRmVMEncryption {
 
     # Check whether the 'Data' volume is encrypted.
     # Status '1': NotEncrypted
-    if (($vmEncryptionStatus.DataVolumesEncrypted -eq '1') -or ($vmEncryptionStatus.DataVolumesEncrypted -eq '2')) { 
+    if (($vmEncryptionStatus.DataVolumesEncrypted -eq '1') -or ($vmEncryptionStatus.DataVolumesEncrypted -eq '2')) {
         # $objVMDiskEncryption | Add-Member NoteProperty 'dataVolumesEncryption' $vmEncryptionStatus.DataVolumesEncrypted
         $objVMDiskEncryption | Add-Member NoteProperty 'dataVolumesEncryption' 'Disabled'
     } else {
         $objVMDiskEncryption | Add-Member NoteProperty 'dataVolumesEncryption' 'Enabled'
-    }    
+    }
 
     # Check whether the 'Os' volume is encrypted.
     # Status '1': NotEncrypted
     # Status '2': Unknown
-    if (($vmEncryptionStatus.OsVolumeEncrypted -eq '1') -or ($vmEncryptionStatus.OsVolumeEncrypted -eq '2')) { 
-        
+    if (($vmEncryptionStatus.OsVolumeEncrypted -eq '1') -or ($vmEncryptionStatus.OsVolumeEncrypted -eq '2')) {
+
         # $objVMDiskEncryption | Add-Member NoteProperty 'osVolumeEncryption' $vmEncryptionStatus.OsVolumeEncrypted
         $objVMDiskEncryption | Add-Member NoteProperty 'osVolumeEncryption' 'Disabled'
-           
+
     } else {
         # $objVMDiskEncryption | Add-Member NoteProperty 'osVolumeEncryption' $vmEncryptionStatus.OsVolumeEncrypted
         $objVMDiskEncryption | Add-Member NoteProperty 'osVolumeEncryption' 'Enabled'
         $objVMDiskEncryption | Add-Member NoteProperty 'osVolumeEncryptionInfo'  $vmEncryptionStatus.OsVolumeEncryptionSettings
-    }    
+    }
     return $objVMDiskEncryption
 }
 
 <#
-    .DESCRIPTION 
+    .DESCRIPTION
     Helprer function to retrieve the security extensions that have been deployed and configuratio in a VM.
 
     .PARAMETER $vmInstance
@@ -818,7 +866,7 @@ function Get-CustomAzureRmVMSecurityExtensions {
             $objVMExtensionInfo | Add-Member NoteProperty 'vmExtensionName' $vmExtension.Name
             $objVMExtensionInfo | Add-Member NoteProperty 'vmExtensionVersion' $vmExtension.TypeHandlerVersion
             $objVMExtensionInfo | Add-Member NoteProperty 'vmExtensionProvisioningState' $vmExtension.ProvisioningState
-            
+
             # The value of this property is a String.
             $objVMExtensionInfo | Add-Member NoteProperty 'vmExtensionSettings' $vmExtension.Settings.ToString()
 
@@ -832,7 +880,7 @@ function Get-CustomAzureRmVMSecurityExtensions {
 
 
 <#
-    .DESCRIPTION 
+    .DESCRIPTION
     Helprer function to retrieve the Network Security Groups (NSGs) for Virtual Machines and Subnets.
 
     .PARAMETER $vmInstance
@@ -863,10 +911,10 @@ function Get-CustomAzureRmNetworkSecurityGroups {
 
             # Get the name of the network interface from the UNC.
             $vmNetworkInterfaceName = $vmNetworkInterfaceId | Split-Path -Leaf
-            
+
             # Collect the configuration of the associated VM's network interface.
             $vmNetworkInterfaceConfig = Get-AzureRmNetworkInterface -Name $vmNetworkInterfaceName -ResourceGroupName $vmInstance.ResourceGroupName
-        
+
             # The network interface is associated with a NSG if there's the NSG's Id in the NIC's configuration.
             # Check if there's is an NSG associated and retrieve the configuration.
             if ($vmNICNetworkSecurityGroupName = $vmNetworkInterfaceConfig.NetworkSecurityGroup.Id) {
@@ -882,14 +930,14 @@ function Get-CustomAzureRmNetworkSecurityGroups {
                 $objVMNetworkInterfaceNetworkSecurityGroups | Add-Member NoteProperty 'vmNICNetworkSecurityGroupName' $vmNICNetworkSecurityGroup.Name
                 $objVMNetworkInterfaceNetworkSecurityGroups | Add-Member NoteProperty 'vmNICNetworkSecurityGroupCustomRules' $vmNICNetworkSecurityGroup.SecurityRules
                 $objVMNetworkInterfaceNetworkSecurityGroups | Add-Member NoteProperty 'vmNICNetworkSecurityGroupDefaultRules' $vmNICNetworkSecurityGroup.DefaultSecurityRules
-                       
+
                 $vmNetworkInterfaceNetworkSecurityGroups += $objVMNetworkInterfaceNetworkSecurityGroups
             }
         }
 
         # Return the object for the configuration of the VM's NSGs.
         return $vmNetworkInterfaceNetworkSecurityGroups
-        
+
     # Check if the cmdlet was called with input a Subnet instance.
     } elseif ($subnet) {
         # Check if the Subnet has a NSG associated with it.
@@ -900,16 +948,16 @@ function Get-CustomAzureRmNetworkSecurityGroups {
 
                 # Get Subnet NSG Resource Group's name
                 $subnetNetworkSecurityGroupResourceGroupName = ($subnet.NetworkSecurityGroup.Id).Split('/')[4]
-                
+
                 # Use the information gathered to retrieve the NSG configuration for the Subnet.
                 $subnetNetworkSecurityGroup = Get-AzureRmNetworkSecurityGroup -Name $subnetNetworkSecurityGroupName -ResourceGroupName $subnetNetworkSecurityGroupResourceGroupName
-                
+
                 # Create the object containing the Subnet's Network Security Group details.
                 $subnetNetworkSecurityGroups = New-Object PSObject
                 $subnetNetworkSecurityGroups | Add-Member NoteProperty 'subnetNetworkSecurityGroupName' $subnetNetworkSecurityGroup.Name
                 $subnetNetworkSecurityGroups | Add-Member NoteProperty 'subnetNetworkSecurityGroupCustomRules' $subnetNetworkSecurityGroup.SecurityRules
-                $subnetNetworkSecurityGroups | Add-Member NoteProperty 'subnetNetworkSecurityGroupDefaultRules' $subnetNetworkSecurityGroup.DefaultSecurityRules        
-            
+                $subnetNetworkSecurityGroups | Add-Member NoteProperty 'subnetNetworkSecurityGroupDefaultRules' $subnetNetworkSecurityGroup.DefaultSecurityRules
+
         }
         # Return the object for the configuration of the Subnet's NSGs.
         return $subnetNetworkSecurityGroups
@@ -917,7 +965,7 @@ function Get-CustomAzureRmNetworkSecurityGroups {
 }
 
 <#
-    .DESCRIPTION 
+    .DESCRIPTION
     Helprer function to retrieve the routing configuration (Route Tables) for Subnets.
 
     .PARAMETER $subnet
@@ -936,7 +984,7 @@ function Get-CustomAzureRmRouteTable {
 
     # TODO: Check if you can have more route tables associated with the same subnet.
     if ($subnet.RouteTable.Id) {
-        
+
         # Get subnet's route table.
         $subnetRouteTable = Get-AzureRmRouteTable -Id $subnet.RouteTable.Id
 
@@ -944,7 +992,7 @@ function Get-CustomAzureRmRouteTable {
         $subnetRouteTableName = $subnet.RouteTable.Id | Split-Path -Leaf
         $subnetRouteTableNameResourceGroupName = ($subnet.RouteTable.Id).Split('/')[4]
         $subnetRouteTable = Get-AzureRmRouteTable -Name $subnetRouteTableName -ResourceGroupName $subnetRouteTableResourceGroupName
-                
+
         # TODO: Populate the object to contain the details about the subnet.
         $objSubnetRouteTableInfoProperties = [ordered] @{
             subnetRouteTableName = $subnetRouteTableName
@@ -958,7 +1006,7 @@ function Get-CustomAzureRmRouteTable {
 }
 
 <#
-    .DESCRIPTION 
+    .DESCRIPTION
     Helprer function to retrieve details and configuration for Azure gateways (VNet and Local Network gateways). The method is called from the
     Get-CustomAzureRmSubscriptionNetworkConfiguration helper function, to retrieve information about each Azure Gateway when one is discovered.
 
@@ -993,10 +1041,10 @@ function Get-CustomAzureRmGateway {
 
         # Retrieve the VNet Gateway connections for the resource group that the current VNet gateway belongs to.
         $virtualNetworkGatewayConnections = Get-AzureRmVirtualNetworkGatewayConnection -ResourceGroupName $gatewayResourceGroupName
-        
+
         # Check whether there are any connections returned.
         if ($virtualNetworkGatewayConnections) {
-            
+
             # Collect information about each Virtual Network Gateway connection with other VNET Gateways or Local Network Gateways.
             $virtualNetworkGatewayConnectionInfo = @()
             foreach ($virtualNetworkGatewayConnection in $virtualNetworkGatewayConnections) {
@@ -1085,22 +1133,22 @@ function Get-CustomAzureRmGateway {
             itemType = 'Virtual Network Gateway'
             virtualNetworkGatewayNetworkConfiguration = $virtualNetworkGatewayInstanceNetworkConfiguration
             virtualNetworkGatewayType =$virtualNetworkGatewayInstance.GatewayType
-            virtualNetworkGatewayBgp = $virtualNetworkGatewayInstance.EnableBgp 
+            virtualNetworkGatewayBgp = $virtualNetworkGatewayInstance.EnableBgp
         }
 
         # If there are any Gateway connections, add this information too.
         if ($virtualNetworkGatewayConnectionInfo) {
             $objVirtualNetworkGatewayInstanceInfoProperties.Add('virtualNetworkGatewayConnections', $objVirtualNetworkGatewayConnectionInfo)
         }
-    
+
         $objVirtualNetworkGatewayInstanceInfo = New-Object -TypeName PSObject -Property $objVirtualNetworkGatewayInstanceInfoProperties
-    
+
         return $objVirtualNetworkGatewayInstanceInfo
     # Check if the cmdlet was called with input a Local Network Gateway's name.
     } elseif ($localNetworkGatewayName) {
         # Retrieve the instance for the given Local Network Gateway.
          $localNetworkGatewayInstance = Get-AzureRmLocalNetworkGateway -Name $localNetworkGatewayName -ResourceGroupName $gatewayResourceGroupName -WarningAction SilentlyContinue
-         
+
          # Populate the object for the Local Network Gateway network configuration details.
          $objLocalNetworkGatewayInstanceNetworkConfigurationProperties = @{
             localNetworkGatewayPublicIpAddress = $localNetworkGatewayInstance.GatewayIpAddress
@@ -1128,7 +1176,7 @@ function Get-CustomAzureRmGateway {
 
 <#
     .DESCRIPTION
-    Helprer function to retrieve details and configuration for the Azure Web Applications (App Services). 
+    Helprer function to retrieve details and configuration for the Azure Web Applications (App Services).
     The method is also called from the Get-CustomAzureRmSubscriptionNetworkConfiguration helper function.
 
     .PARAMETER $webApp
@@ -1148,7 +1196,7 @@ function Get-CustomAzureRmWebApp {
 
     # Gets a Web Application's certificate SSL binding.
     $webAppSSLBinding = Get-AzureRmWebAppSSLBinding -WebApp $webApp
-    
+
     # Retrieve Web Application's publishing profile for website and ftp in all available formats.
     # Contains deployment username and password, connection strings for SQL and MySQL DBMS.
     # Requires elevated privileges. Not possible to retrieve with 'Reader' role.
@@ -1176,9 +1224,9 @@ function Get-CustomAzureRmWebApp {
     $objWebAppInfo | Add-Member NoteProperty 'webAppHostNamesSslStates' $webApp.HostNamesSslStates
     $objWebAppInfo | Add-Member NoteProperty 'webAppOutboundIpAddresses' $webApp.OutboundIpAddresses
 
-    # In case there is an SSL certificate binding, 
+    # In case there is an SSL certificate binding,
     # retrieve the Web Application's certificate details using the certificate's thumbprint.
-    if ($webAppSSLBinding) { 
+    if ($webAppSSLBinding) {
         $webAppSSLCertificate = Get-AzureRmWebAppCertificate -Thumbprint $webAppSSLBinding.Thumbprint
 
         $objWebAppSSLCertificateInfo = New-Object PSObject
@@ -1199,7 +1247,7 @@ function Get-CustomAzureRmWebApp {
 
 <#
     .DESCRIPTION
-    Helprer function to retrieve the configuration of the Azure Key Vault. 
+    Helprer function to retrieve the configuration of the Azure Key Vault.
 
     .PARAMETER $keyVaultInstanceName
     The Azure Key Vault's name.
@@ -1215,8 +1263,8 @@ function Get-CustomAzureRmKeyVault {
         [String] $keyVaultInstanceName,
         [String] $keyVaultResourceGroupName
     )
-    
-    Write-Host "[+] Retrieve Key Vault's $keyVaultResourceGroupName - $($keyVaultInstanceName) configuration." 
+
+    Write-Host "[+] Retrieve Key Vault's $keyVaultResourceGroupName - $($keyVaultInstanceName) configuration."
 
     # Retrieve the Azure Key Vault instance referenced by the parameters provided as input.
     $keyVaultInstance = Get-AzureRmKeyVault -VaultName $keyVaultInstanceName -ResourceGroupName $keyVaultResourceGroupName -WarningAction SilentlyContinue
@@ -1249,7 +1297,7 @@ function Get-CustomAzureRmKeyVault {
     if ($keyVaultKeys) {
         $keyVaultKeysInfo = @()
         foreach ($keyVaultKey in $keyVaultKeys) {
-            
+
             $keyInstance = Get-AzureKeyVaultKey -Name $keyVaultKey.Name -VaultName $keyVaultKey.VaultName -WarningAction SilentlyContinue
 
             # Populate an object which contains the information for the Key Vault Keys.
@@ -1260,7 +1308,7 @@ function Get-CustomAzureRmKeyVault {
                 keyURI = $keyInstance.Key.Kid
                 keyType = $keyInstance.Key.Kty
                 keyOperations = $keyInstance.Key.KeyOps
-            
+
             }
 
             # Get the expiration date of the Azure Key Vault Key, if it's set.
@@ -1291,7 +1339,7 @@ function Get-CustomAzureRmKeyVault {
     if ($keyVaultSecrets) {
         $keyVaultSecretsInfo = @()
         foreach ($keyVaultSecret in $keyVaultSecrets) {
-            
+
             $secretInstance = Get-AzureKeyVaultSecret -Name $keyVaultSecret.Name -VaultName $keyVaultSecret.VaultName -WarningAction SilentlyContinue
 
             # Populate an object which contains the information for the Key Vault Secrets.
@@ -1327,11 +1375,11 @@ function Get-CustomAzureRmKeyVault {
     .DESCRIPTION
     Helprer function to retrieve information for the network configuration of the provided Azure subscription.
     The function does not accept any arguments. It retrieves the requested information from the selected (current) subscription.
-    Information that is returned in the object follows the hierarchy: 
+    Information that is returned in the object follows the hierarchy:
     1. VNets -> Subnets -> VMs and VNET Gateways
     2. Azure SQL Server -> Azure SQL Database
     3. Web Applications
-    4. Local Gateways  
+    4. Local Gateways
 
     .OUTPUT
     The function returns an object which contains information about the network configuration and some of the resources of the Azure subscription.
@@ -1345,11 +1393,11 @@ function Get-CustomAzureRmSubscriptionNetworkConfiguration {
 
     # If there are any VNets in the subscription, iterate through them to retrieve all the relevant information.
     if ($subscriptionVNETs) {
-        
+
         # Initialise an array to contain all the VNets in the subscription.
         $subscriptionVNETInfo = @()
         foreach ($subscriptionVNET in $subscriptionVNETs) {
-            
+
             # Populate an object to include the information for each VNet in the subscription.
             $objSubscriptionVNETInfo = New-Object PSObject
             $objSubscriptionVNETInfo | Add-Member NoteProperty 'vnetName' $subscriptionVNET.Name
@@ -1358,13 +1406,13 @@ function Get-CustomAzureRmSubscriptionNetworkConfiguration {
 
             # Return all the address spaces of the VNet.
             $objSubscriptionVNETInfo | Add-Member NoteProperty 'vnetAddressSpaces' $subscriptionVNET.AddressSpace
-            
+
             # If the VNet contains subnets, retrieve information about each subnet recursively.
             if ($subscriptionVNET.Subnets.Count) {
-                
-                # Initialise an array to return all the subnets' info.                
+
+                # Initialise an array to return all the subnets' info.
                 $subscriptionVNETSubnetInfo = @()
-                
+
                 # Retrieve the configuration for each subnet (Virtual Machines, IP addresses, etc)
                 foreach ($subscriptionVNETSubnet in $subscriptionVNET.Subnets) {
 
@@ -1374,47 +1422,47 @@ function Get-CustomAzureRmSubscriptionNetworkConfiguration {
 
                     # If the subnet has multiple network configurations, iterate through them and retrieve the information.
                     if ($subscriptionVNETSubnet.IpConfigurations.Count) {
-                        
-                        # Initialise an array to contain info for each subnet, 
+
+                        # Initialise an array to contain info for each subnet,
                         $subscriptionVNETSubnetItemInfo = @()
                         foreach ($subscriptionVNETSubnetIpConfiguration in $subscriptionVNETSubnet.IpConfigurations) {
-                            
-                            
-                            # Check if the subnet's name is not "GatewaySubnet" i.e. it is a gateway subnet ;) and if true, 
+
+
+                            # Check if the subnet's name is not "GatewaySubnet" i.e. it is a gateway subnet ;) and if true,
                             # perform operations to retrieve information for a VM.
                             if ($subscriptionVNETSubnet.Name -ne 'GatewaySubnet') {
-                                
+
                                 # Get the subnet's network interface name from IpConfiguration Id
                                 $networkInterfaceName = ($subscriptionVNETSubnetIpConfiguration.Id).Split('/')[-3]
 
                                 # Get resource group; A network interface can belong to a different resource group
                                 # than the Virtual Network or the Virtual Machine attached to.
                                 $networkInterfaceResourceGroupName = ($subscriptionVNETSubnetIpConfiguration.Id).Split('/')[4]
-                                
+
                                 # Retrieve the configuration associated with the retrieved Network Interface.
                                 $networkInterfaceConfig = Get-AzureRmNetworkInterface -Name $networkInterfaceName -ResourceGroupName $networkInterfaceResourceGroupName
-             
+
                                 # Check that the Network Interface is attached to a VM.
                                 if ($networkInterfaceConfig.VirtualMachine -ne $null) {
                                     $vmName = $networkInterfaceConfig.VirtualMachine.Id | Split-Path -Leaf
 
                                     # Collect information about the VM (using the custom function Get-CustomAzureRmWindowsVM).
                                     $objSubscriptionVNETSubnetItemInfo = Get-CustomAzureRmWindowsVM -vmInstanceName $vmName -vmInstanceResourceGroupName $networkInterfaceResourceGroupName
-                         
+
                                }
                             # If the subnet's name is "GatewaySubnet" perform the following operations to retrieve information for the VNet Gateway subnet.
                             } else {
-                                
-                                # Subnet must be in the same resource group as the VNet. 
+
+                                # Subnet must be in the same resource group as the VNet.
                                 # Get the subnet's name.
                                 $gatewaySubnetName = ($subscriptionVNETSubnetIpConfiguration.Id).Split('/')[-3]
-                                
+
                                 # Retrieve information for the VNet Gateway.
                                 $gatewaySubnetVirtualNetworkGateway = Get-AzureRmVirtualNetworkGateway -Name $gatewaySubnetName -ResourceGroupName $subscriptionVNET.ResourceGroupName
 
                                 # Retrieve information about the configuration of the VNet Gateway (using custom function Get-CustomAzureRmGateway).
-                                $objSubscriptionVNETSubnetItemInfo = Get-CustomAzureRmGateway -virtualNetworkGatewayName $gatewaySubnetVirtualNetworkGateway.Name -gatewayResourceGroup $gatewaySubnetVirtualNetworkGateway.ResourceGroupName  
-                                                                
+                                $objSubscriptionVNETSubnetItemInfo = Get-CustomAzureRmGateway -virtualNetworkGatewayName $gatewaySubnetVirtualNetworkGateway.Name -gatewayResourceGroup $gatewaySubnetVirtualNetworkGateway.ResourceGroupName
+
                             }
 
                             # If information about a subnet item (VM or VNet Gateway) was retrieved, then populate the subnet item's array.
@@ -1423,13 +1471,13 @@ function Get-CustomAzureRmSubscriptionNetworkConfiguration {
                                 Remove-Variable -Name objSubscriptionVNETSubnetItemInfo
                             }
                         }
-                        
+
                         # If information about subnet items (VM or VNet Gateway) was retrieved, then populate the subnet's object.
-                        if ($subscriptionVNETSubnetItemInfo) {                          
+                        if ($subscriptionVNETSubnetItemInfo) {
                             $objSubscriptionVNETSubnetInfo | Add-Member NoteProperty 'subnetItems' $subscriptionVNETSubnetItemInfo
                             Remove-Variable -Name subscriptionVNETSubnetItemInfo
                         }
-                                
+
                     } else {
                         Write-Host "[*] No items were retrieved for Subnet $($subscriptionVNETSubnet.Name) in Virtual Network $($subscriptionVNET.Name)."
                     }
@@ -1443,19 +1491,19 @@ function Get-CustomAzureRmSubscriptionNetworkConfiguration {
                     #$subscriptionVNETSubnetRouteTable = Get-CustomAzureRmRouteTable -subnet $subscriptionVNETSubnet
                     $objSubscriptionVNETSubnetInfo | Add-Member NoteProperty 'subnetRouteTable' $subscriptionVNETSubnetRouteTable
 
-                    $subscriptionVNETSubnetInfo += $objSubscriptionVNETSubnetInfo  
+                    $subscriptionVNETSubnetInfo += $objSubscriptionVNETSubnetInfo
                 }
 
                 # Append the object containing the subnet's information to the VNet object.
                 $objSubscriptionVNETInfo | Add-Member NoteProperty 'vnetSubnets' $subscriptionVNETSubnetInfo
-                    
+
             }
-     
+
             $subscriptionVNETInfo += $objSubscriptionVNETInfo
 
        }
 
-      
+
        return $subscriptionVNETInfo
    }
 
@@ -1465,4 +1513,3 @@ function Get-CustomAzureRmSubscriptionNetworkConfiguration {
         return $null
    }
 }
-
