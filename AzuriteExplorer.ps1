@@ -8,7 +8,7 @@
 
 <#
     Main function to retrieve the configuration of all the components in the given Azure subscription.
-    The function does not accept any parameters.
+    The function optionally accepts parameters.
     The function creates a number of JSON files that provide information about the various components in the Azure subscription.
 #>
 function Review-AzureRmSubscription {
